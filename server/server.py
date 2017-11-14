@@ -30,8 +30,7 @@ while True:
             file = commandFile[1]
             f = open(file, 'rb')
             fileSize = os.stat(file).st_size
-            fileSize.to_bytes((fileSize.bit_length() + 7) // 8, 'big') or b'\0'
-            c.send(fileSize)
+           	c.send(fileSize.toBytes(8, byteorder = "big", signed = false)
             okCheck = c.recv(1024)
             if okCheck.decode("utf-8") == "OK":
                 toSend = f.read(1024)

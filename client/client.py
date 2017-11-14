@@ -4,7 +4,7 @@ import os
 
 s = socket.socket()         # Create a socket object
 host = socket.gethostname() # Hostname to use
-port = int(sys.argv[1])              # Port to be used
+port = int(sys.argv[1])     # Port to be used
 
 # Client protocol messages
 ready = "READY".encode("utf-8")
