@@ -25,12 +25,12 @@ while True:
 
     if commandFile[0] == "GET":
         c.send(ok)
+        file = commandFile[1]
+        f = open(file, 'rb')
         readyCheck = c.recv(1024)
         if readyCheck.decode("utf-8") == "READY":
-            file = commandFile[1]
-            f = open(file, 'rb')
-            fileSize = os.stat(file).st_size
-           	c.send(fileSize.toBytes(8, byteorder = "big", signed = false)
+            fileSize = int(os.stat(file).st_size)
+            c.send(fileSize.to_bytes(8, byteorder="big", signed=False))
             okCheck = c.recv(1024)
             if okCheck.decode("utf-8") == "OK":
                 toSend = f.read(1024)
@@ -38,7 +38,8 @@ while True:
                     print("sending...")
                     c.sendall(toSend)
                     toSend = f.read(1024)
-                file.close()
+                print("done sending!")
+                f.close()
                 c.send(done)
 
     if commandFile[0] == "PUT":
