@@ -4,8 +4,8 @@ import os
 
 s = socket.socket()         # Create a socket object
 host = socket.gethostname() # Hostname to use
-port = int(sys.argv[1])     # Port to be used
-
+#port = int(sys.argv[1])     # Port to be used
+port = 12345
 # Client protocol messages
 ready = "READY".encode("utf-8")
 ok = "OK".encode("utf-8")
@@ -16,8 +16,11 @@ s.connect((host, port))
 
 # Take combined input and send to server via single packet
 command = sys.argv[2]            # GET, PUT, or DEL
+#command = "GET"
 file = sys.argv[3]        # File path of file to transfer
+#file = "asdaffsa.png"
 toSend = str(command + " " + file).encode("utf-8")
+#toSend = "GET asdaffsa.png".encode("utf-8")
 readyCheck = s.recv(1024)
 
 if readyCheck.decode("utf-8") == "READY":
@@ -26,8 +29,8 @@ if readyCheck.decode("utf-8") == "READY":
     # if Get, open the file requested and write blocks as they are received
     if command == "GET":
         f = open(file, 'wb')
-
-        if s.recv(1024).decode('utf-8') == "OK":
+        okCheck = s.recv(1024).decode('utf-8')
+        if okCheck == "OK":
             s.send(ready)
             bytes_remaining = s.recv(1024)
             bytes_remaining = int.from_bytes(bytes_remaining, byteorder='big', signed=False)
@@ -45,6 +48,9 @@ if readyCheck.decode("utf-8") == "READY":
             doneCheck = s.recv(1024)
             if doneCheck.decode('utf-8') == "DONE":
                 print("Complete")
+        elif "ERROR" in okCheck:
+            okCheck = okCheck.split("ERROR: ")
+            print("Server error: file %s" % (okCheck[1]))
 
     # if PUT; open file, read bytes into packets and send
     if command == "PUT":
@@ -74,6 +80,7 @@ if readyCheck.decode("utf-8") == "READY":
         doneCheck = s.recv(1024)
         if doneCheck.decode('utf-8') == "DONE":
             print("Complete")
-
+        elif "ERROR" in doneCheck.decode('utf-8'):
+            print("FUCKOFF")
 s.shutdown(socket.SHUT_WR)
 s.close()                # Close the connection

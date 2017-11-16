@@ -13,11 +13,13 @@ except IndexError:
 
 s = socket.socket()         # Create a socket object
 host = socket.gethostname() # Get local machine name
-port = int(sys.argv[1])                # Reserve a port for your service.
+port = int(sys.argv[1])     # Reserve a port for your service.
 s.bind((host, port))        # Bind to the port
 s.listen(0)                 # Now wait for client connection.
 if verbose == True:
     print("Server waiting on port %d" % (port))
+errorCode = False
+
 # Protocol messages
 ready = "READY".encode("utf-8")
 ok = "OK".encode("utf-8")
@@ -43,23 +45,30 @@ while True:
 
 
     if commandFile[0] == "GET":
-        c.send(ok)
-        file = commandFile[1]
-        f = open(file, 'rb')
-        readyCheck = c.recv(1024)
-        if readyCheck.decode("utf-8") == "READY":
-            fileSize = int(os.stat(file).st_size)
-            c.send(fileSize.to_bytes(8, byteorder="big", signed=False))
-            okCheck = c.recv(1024)
-            if okCheck.decode("utf-8") == "OK":
-                if verbose == True:
-                    print("Server sending %d bytes" % (fileSize))
-                toSend = f.read(1024)
-                while toSend:
-                    c.sendall(toSend)
+
+        try:
+            f = open(file, 'rb')
+        except IOError:
+            error = "ERROR: " + file + " does not exist"
+            c.send(error.encode('utf-8'))
+            errorCode = True
+
+        if errorCode == False:
+            c.send(ok)
+            readyCheck = c.recv(1024)
+            if readyCheck.decode("utf-8") == "READY":
+                fileSize = int(os.stat(file).st_size)
+                c.send(fileSize.to_bytes(8, byteorder="big", signed=False))
+                okCheck = c.recv(1024)
+                if okCheck.decode("utf-8") == "OK":
+                    if verbose == True:
+                        print("Server sending %d bytes" % (fileSize))
                     toSend = f.read(1024)
-                f.close()
-                c.send(done)
+                    while toSend:
+                        c.sendall(toSend)
+                        toSend = f.read(1024)
+                    f.close()
+                    c.send(done)
 
     if commandFile[0] == "PUT":
         c.send(ok)
@@ -78,12 +87,18 @@ while True:
             toRecv = c.recv(min(bytes_remaining, 1024))
         f.close()
         c.send(done)
-        
-    
+
+
     if commandFile[0] == "DEL":
         if verbose == True:
             print("Server deleting file %s" % (file))
-        os.remove(file)
+
+        try:
+            os.remove(file)
+        except IOError:
+            error = ("ERROR: %s does not exist" % (file))
+            c.send(error.encode('utf-8'))
+
         c.send(done)
 
     c.close()                # Close the connection
