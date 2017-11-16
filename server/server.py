@@ -1,6 +1,7 @@
 import sys
 import socket               # Import socket module
 import os
+import time
 
 
 verbose = False
@@ -35,8 +36,10 @@ while True:
     if verbose == True:
         print("Server connected to client at %s" % (address))
     c.send(ready)
+    time.sleep(1)
     commandFile = c.recv(1024)
     commandFile = commandFile.decode("utf-8")
+    print(commandFile)
     if verbose == True:
         print("Server receiving request: %s" % (commandFile))
     commandFile = commandFile.split()
@@ -75,18 +78,27 @@ while True:
         bytes_remaining = c.recv(1024)
         bytes_remaining = int.from_bytes(bytes_remaining, byteorder='big', signed=False)
         original_size = bytes_remaining
-        c.send(ok)
-        f = open(file, 'wb')
-        toRecv = c.recv(min(bytes_remaining, 1024))
-        if verbose == True:
-            print("Server receiving %d bytes" % (original_size))
-        while toRecv:
-            #print("%d of %d remaining..." % (bytes_remaining, original_size))
-            f.write(toRecv)
-            bytes_remaining = bytes_remaining - len(toRecv)
+
+        try:
+            f = open(file, 'wb')
+        except IOError:
+            error = "ERROR: unable to create file " + file
+            c.send(error.encode('utf-8'))
+            errorCode = True
+
+
+        if errorCode == False:
+            c.send(ok)
             toRecv = c.recv(min(bytes_remaining, 1024))
-        f.close()
-        c.send(done)
+            if verbose == True:
+                print("Server receiving %d bytes" % (original_size))
+            while toRecv:
+                #print("%d of %d remaining..." % (bytes_remaining, original_size))
+                f.write(toRecv)
+                bytes_remaining = bytes_remaining - len(toRecv)
+                toRecv = c.recv(min(bytes_remaining, 1024))
+            f.close()
+            c.send(done)
 
 
     if commandFile[0] == "DEL":
@@ -98,7 +110,5 @@ while True:
         except IOError:
             error = ("ERROR: %s does not exist" % (file))
             c.send(error.encode('utf-8'))
-
         c.send(done)
-
     c.close()                # Close the connection
