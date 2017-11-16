@@ -26,6 +26,7 @@ if readyCheck.decode("utf-8") == "READY":
     # if Get, open the file requested and write blocks as they are received
     if command == "GET":
         f = open(file, 'wb')
+
         if s.recv(1024).decode('utf-8') == "OK":
             s.send(ready)
             bytes_remaining = s.recv(1024)
@@ -35,25 +36,44 @@ if readyCheck.decode("utf-8") == "READY":
             toRecv = s.recv(min(bytes_remaining, 1024))
 
             # writes blocks to file while the data received is less than filesize
+            print("Client receiving file %s (%d bytes)" % (file, original_size))
             while toRecv:
-                print("%d of %d remaining..." % (bytes_remaining, original_size))
+                #print("%d of %d remaining..." % (bytes_remaining, original_size))
                 f.write(toRecv)
                 bytes_remaining = bytes_remaining - len(toRecv)
                 toRecv = s.recv(min(bytes_remaining, 1024))
+            doneCheck = s.recv(1024)
+            if doneCheck.decode('utf-8') == "DONE":
+                print("Complete")
 
     # if PUT; open file, read bytes into packets and send
     if command == "PUT":
-        fileSize = os.stat(file).st_size
-        f = open(file, 'rb')
-        toSend = f.read(1024)
-        while toSend:
-            print("Sending file %s (%d bytes)" % (file, (fileSize / 1024)))
-            s.sendall(toSend)
-            toSend = f.read(1024)
-            fileSize = (fileSize - 1024)
-        f.close()
-        print("Done")
+        okCheck = s.recv(1024)
+
+        if okCheck.decode('utf-8') == "OK":
+            fileSize = os.stat(file).st_size
+            s.send(fileSize.to_bytes(8, byteorder="big", signed=False))
+            okCheck = s.recv(1024)
+
+            if okCheck.decode('utf-8') == "OK":
+                f = open(file, 'rb')
+                toSend = f.read(1024)
+                print("Client sending file %s (%d bytes)" % (file, fileSize))
+
+                while toSend:
+                    s.sendall(toSend)
+                    toSend = f.read(1024)
+                f.close()
+                doneCheck = s.recv(1024)
+
+                if doneCheck.decode('utf-8') == "DONE":
+                    print("Complete")
+
+    if command == "DEL":
+        print("Client deleting file %s" % (file))
+        doneCheck = s.recv(1024)
+        if doneCheck.decode('utf-8') == "DONE":
+            print("Complete")
 
 s.shutdown(socket.SHUT_WR)
-print(s.recv(1024), end='')
-s.close()
+s.close()                # Close the connection
